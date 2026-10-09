@@ -1,0 +1,19 @@
+// macOS counterpart of foreground.ps1: prints "<pid>\t<executable name>" for the frontmost app twice a second.
+// Started by foreground.js. Writing every tick (not just on change) means it exits on its own once the
+// Node process that started it goes away, since writing to the closed pipe ends it.
+ObjC.import("AppKit");
+
+function run() {
+    const workspace = $.NSWorkspace.sharedWorkspace;
+    const stdout = $.NSFileHandle.fileHandleWithStandardOutput;
+    for (;;) {
+        const app = workspace.frontmostApplication;
+        let line = "0\t";
+        if (!app.isNil() && !app.executableURL.isNil()) {
+            line = `${app.processIdentifier}\t${app.executableURL.lastPathComponent.js}`;
+        }
+        stdout.writeData($(line + "\n").dataUsingEncoding($.NSUTF8StringEncoding));
+        // Running the run loop (rather than sleeping) lets NSWorkspace notice app switches.
+        $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(0.5));
+    }
+}

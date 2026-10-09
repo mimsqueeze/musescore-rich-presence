@@ -1,9 +1,14 @@
 // Keeps only one copy running (e.g. the startup copy and a manual `npm start`),
-// and lets other commands ask the running copy to stop. Uses a named pipe,
-// which Windows releases automatically if the process dies.
+// and lets other commands ask the running copy to stop. Uses a named pipe on
+// Windows, which is released automatically if the process dies, and a Unix
+// socket elsewhere, which can be left behind and is cleaned up on the next start.
+const fs = require("fs");
 const net = require("net");
 
-const PIPE = "\\\\.\\pipe\\musescore-studio-rich-presence";
+const PIPE =
+    process.platform === "win32"
+        ? "\\\\.\\pipe\\musescore-studio-rich-presence"
+        : `/tmp/musescore-studio-rich-presence-${process.getuid()}.sock`;
 
 /** Resolves true if this is the only running copy. `onStop` is called when asked to stop. */
 function acquireLock(onStop) {
@@ -17,7 +22,17 @@ function acquireLock(onStop) {
             });
             socket.on("error", () => {});
         });
-        server.once("error", () => resolve(false));
+        server.once("error", async (e) => {
+            if (process.platform === "win32" || e.code !== "EADDRINUSE" || (await isRunning())) return resolve(false);
+            // A socket left behind by a copy that didn't exit cleanly.
+            try {
+                fs.unlinkSync(PIPE);
+            } catch {
+                return resolve(false);
+            }
+            server.once("error", () => resolve(false));
+            server.listen(PIPE, () => resolve(true));
+        });
         server.listen(PIPE, () => resolve(true));
     });
 }

@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
+const IS_MAC = process.platform === "darwin";
+
 const DEFAULTS = {
     // Discord application ID. You don't need your own: the name shown is set by `activityName`.
     clientId: "577645453429047314",
@@ -28,11 +30,14 @@ const DEFAULTS = {
     largeImage: "https://raw.githubusercontent.com/musescore/MuseScore/main/share/icons/AppIcon/MS4_AppIcon_512x512.png",
     largeImageText: "MuseScore Studio",
 
-    // Executable names to look for. MuseScore Studio 4.x is still MuseScore4.exe.
-    processNames: ["MuseScore4.exe", "MuseScore5.exe", "MuseScoreStudio.exe"],
+    // Executable names to look for. MuseScore Studio 4.x is still MuseScore4.exe on Windows.
+    // On macOS it's the executable inside the app bundle (MuseScore 4.app/Contents/MacOS/mscore).
+    processNames: IS_MAC ? ["mscore"] : ["MuseScore4.exe", "MuseScore5.exe", "MuseScoreStudio.exe"],
 
     // Where MuseScore keeps session.json and recent_files.json.
-    dataDir: path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "MuseScore", "MuseScore4"),
+    dataDir: IS_MAC
+        ? path.join(os.homedir(), "Library", "Application Support", "MuseScore", "MuseScore4")
+        : path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "MuseScore", "MuseScore4"),
 };
 
 function loadConfig() {

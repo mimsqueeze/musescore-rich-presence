@@ -1,0 +1,32 @@
+// macOS counterpart of `tasklist`: prints the running MuseScore processes and their window titles as JSON,
+//   {"windows":[{"pid":123,"name":"mscore","titles":["Score"]}],"error":null}
+// Run by musescore.js as `osascript -l JavaScript windows.jxa <executable names...>`.
+// Reading window titles needs Accessibility access for the app that started Node (e.g. Terminal).
+ObjC.import("AppKit");
+
+function run(argv) {
+    const wanted = argv.map((n) => n.toLowerCase());
+    const systemEvents = Application("System Events");
+    const result = { windows: [], error: null };
+
+    for (const app of ObjC.unwrap($.NSWorkspace.sharedWorkspace.runningApplications)) {
+        if (app.executableURL.isNil()) continue;
+        const name = app.executableURL.lastPathComponent.js;
+        if (!wanted.includes(name.toLowerCase())) continue;
+
+        const pid = app.processIdentifier;
+        let titles = [];
+        try {
+            // Standard windows only, so dialogs and floating panels aren't mistaken for the score window.
+            // They're listed front to back, so the first is the one last used.
+            titles = systemEvents.processes
+                .whose({ unixId: pid })[0]
+                .windows.whose({ subrole: "AXStandardWindow" })
+                .name();
+        } catch (e) {
+            result.error = e.message;
+        }
+        result.windows.push({ pid, name, titles });
+    }
+    return JSON.stringify(result);
+}

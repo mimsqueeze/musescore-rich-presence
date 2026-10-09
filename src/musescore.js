@@ -2,8 +2,9 @@
 //
 // MuseScore Studio sets its main window title to the open score's name
 // ("Score" or "Score - Part" when a part tab is active, or "MuseScore Studio"
-// on the Home screen). We read that title with `tasklist`, which works without
-// WMIC, without admin rights, and even when MuseScore itself runs elevated.
+// on the Home screen). On Windows we read that title with `tasklist`, which works
+// without WMIC, without admin rights, and even when MuseScore itself runs elevated.
+// On macOS a small JXA helper (windows.jxa) reads it through System Events.
 // The title is then matched against MuseScore's own session/recent-files lists
 // to get the full path of the score file.
 const fs = require("fs");
@@ -39,11 +40,53 @@ function tasklist(imageName) {
     });
 }
 
+const lastTitles = new Map(); // pid -> last window title seen (macOS)
+let lastMacError;
+
+function macWindows(executableNames) {
+    return new Promise((resolve) => {
+        execFile(
+            "osascript",
+            ["-l", "JavaScript", path.join(__dirname, "windows.jxa"), ...executableNames],
+            (err, stdout) => {
+                let result;
+                try {
+                    result = JSON.parse(stdout);
+                } catch {
+                    result = { windows: [], error: err ? err.message : "no output from osascript" };
+                }
+                if (result.error !== lastMacError) {
+                    lastMacError = result.error;
+                    if (result.error) {
+                        console.warn(
+                            `! Couldn't read MuseScore's window title (${result.error.trim()}). ` +
+                                "Allow access in System Settings > Privacy & Security > Accessibility " +
+                                `(for your terminal app, or for ${process.execPath} when started at login).`
+                        );
+                    }
+                }
+
+                for (const pid of lastTitles.keys()) {
+                    if (!result.windows.some((w) => w.pid === pid)) lastTitles.delete(pid);
+                }
+                resolve(
+                    result.windows.map((w) => {
+                        // Windows on another Space aren't listed, so keep the title we saw last.
+                        if (w.titles.length) lastTitles.set(w.pid, w.titles[0]);
+                        return { name: w.name, pid: w.pid, title: lastTitles.get(w.pid) ?? "" };
+                    })
+                );
+            }
+        );
+    });
+}
+
 /** Lists running MuseScore processes with their window titles. */
 async function findProcesses(imageNames) {
-    const results = await Promise.all(imageNames.map(tasklist));
+    const results =
+        process.platform === "darwin" ? await macWindows(imageNames) : (await Promise.all(imageNames.map(tasklist))).flat();
     // Helper processes (e.g. the crash handler) have no window title; the main window always has one.
-    return results.flat().filter((p) => p.title !== "");
+    return results.filter((p) => p.title !== "");
 }
 
 function readJson(file) {
