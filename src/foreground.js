@@ -2,29 +2,31 @@
 // MuseScore window you're actually using. Uses a small helper script: PowerShell
 // calling the Win32 GetForegroundWindow API on Windows, or JXA asking NSWorkspace
 // for the frontmost app on macOS. No native modules or admin rights needed.
-const path = require("path");
 const readline = require("readline");
 const { spawn } = require("child_process");
+const { resolveHelperFile } = require("./paths");
 
 const RESTART_DELAY = 10_000;
 
-const HELPER =
-    process.platform === "darwin"
-        ? ["osascript", ["-l", "JavaScript", path.join(__dirname, "foreground.jxa")]]
-        : [
-              "powershell.exe",
-              [
-                  "-NoProfile",
-                  "-NonInteractive",
-                  "-ExecutionPolicy", "Bypass",
-                  "-File", path.join(__dirname, "foreground.ps1"),
-                  "-ParentPid", String(process.pid),
-              ],
-          ];
+function getHelperCommand() {
+    if (process.platform === "darwin") {
+        return ["osascript", ["-l", "JavaScript", resolveHelperFile("foreground.jxa")]];
+    }
+    return [
+        "powershell.exe",
+        [
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy", "Bypass",
+            "-File", resolveHelperFile("foreground.ps1"),
+            "-ParentPid", String(process.pid),
+        ],
+    ];
+}
 
 /** Calls `onChange({ pid, name })` whenever the foreground window changes. */
 function watchForeground(onChange) {
-    const [command, args] = HELPER;
+    const [command, args] = getHelperCommand();
     const child = spawn(command, args, { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
 
     readline.createInterface({ input: child.stdout }).on("line", (line) => {

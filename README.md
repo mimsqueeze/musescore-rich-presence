@@ -15,6 +15,27 @@ It runs alongside MuseScore Studio on Windows and macOS, with nothing to install
 
 ## Setup
 
+### Option 1: Standalone app (no Node.js required)
+
+Download the latest release for your OS from the [Releases](https://github.com/Mimsqueeze/musescore-studio-rich-presence/releases) page:
+
+- **Windows**: Download `MuseScore-Studio-Rich-Presence-win-x64.exe` and double-click it.
+  - If Windows SmartScreen warns about an unrecognized app, click **More info** > **Run anyway**.
+  - Choose **1. Install & start plugin at login** from the setup menu. It installs itself to `%LOCALAPPDATA%\MuseScore Studio Rich Presence\`, sets up login startup, and starts silently.
+- **macOS**: Download the `.dmg` for your Mac (`arm64` for Apple Silicon, `x64` for Intel), open it, and drag **MuseScore Studio Rich Presence.app** into **Applications**.
+  - Because the app is not notarized with an Apple Developer ID, the first time you open it macOS may block it. Right-click the app in Applications and click **Open** (or allow it in **System Settings > Privacy & Security**).
+  - Pick **Install & Start Plugin at Login** from the prompt.
+
+From the setup menu (or by passing `--install`, `--stop`, `--status`, `--uninstall`, `--run`, or `--help` on the command line), you can start/stop the plugin, view logs, or open `config.json`.
+
+For the standalone app, settings and logs are stored in:
+- **Windows**: `%LOCALAPPDATA%\MuseScore Studio Rich Presence\`
+- **macOS**: `~/Library/Application Support/MuseScore Studio Rich Presence/`
+
+*(You can also place a `config.json` right next to the `.exe` or `.app` for portable settings.)*
+
+### Option 2: Run from source
+
 1. Install [Node.js](https://nodejs.org/) 18 or newer.
 2. Clone this repository and install dependencies:
    ```powershell
@@ -29,11 +50,25 @@ It runs until you close the terminal or press Ctrl+C. Discord and MuseScore can 
 
 With several MuseScore windows open, your status follows the one you used most recently. Each score keeps its own elapsed time, so switching back and forth doesn't reset it.
 
+### Building the standalone executable yourself
+
+Requires Node.js 25.5 or newer (uses Node's built-in `--build-sea`):
+
+```powershell
+npm install
+npm run build
+```
+
+Outputs are written to `dist/` (`.exe` on Windows, `.app` and `.dmg` on macOS).
+
 ### macOS permissions
 
-On macOS, reading MuseScore's window title needs Accessibility access. The first time you run `npm start`, macOS asks whether your terminal app may control System Events. Click **OK**. Then open **System Settings > Privacy & Security > Accessibility** and turn on your terminal app (Terminal, iTerm, VS Code, …). If access is missing, the app prints a warning saying what to allow.
+On macOS, reading MuseScore's window title needs Accessibility access.
+- If using the standalone `.app`, open **System Settings > Privacy & Security > Accessibility** and turn on **MuseScore Studio Rich Presence**.
+- If running from source, macOS asks whether your terminal app may control System Events. Click **OK**, then allow your terminal app (Terminal, iTerm, VS Code, …) under **Accessibility**. If started at login from source, allow the `node` executable named in `logs/presence.log` instead.
+- macOS may also ask for access to your Documents folder, where scores live; allow that too.
 
-### Start automatically at login
+### Start automatically at login (from source)
 
 ```powershell
 npm run install-startup
@@ -41,13 +76,12 @@ npm run install-startup
 
 This starts the app right away in the background, with no window, and sets it to start whenever you log in. On Windows it adds a shortcut to your Startup folder. On macOS it adds a LaunchAgent to `~/Library/LaunchAgents`. Messages go to `logs/presence.log`.
 
-On macOS, the copy started at login runs as `node` rather than through your terminal, so `node` needs its own permissions. If `logs/presence.log` shows an Accessibility warning, add the `node` executable it names under **Accessibility**. macOS may also ask whether `node` can access your Documents folder, which is where your scores live. Allow that too.
-
 | Command | What it does |
 | --- | --- |
 | `npm run install-startup` | Start at login, and start now |
 | `npm run uninstall-startup` | Stop starting at login, and stop the running copy |
 | `npm run stop` | Stop the running copy, including one started at login |
+| `npm run menu` | Open the interactive setup menu |
 
 Only one copy runs at a time. If it's already running in the background, `npm start` tells you so and exits.
 
@@ -67,7 +101,7 @@ Because the details come from the saved file, edits show up in your status after
 
 ## Configuration
 
-Create a `config.json` in the project root to override any default from [src/config.js](src/config.js). For example:
+Create or edit `config.json` (use **Open config file** in the setup menu for the standalone app, or place it in the project root when running from source) to override any default from [src/config.js](src/config.js). For example:
 
 ```json
 {

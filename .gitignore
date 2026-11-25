@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Standalone builds
+/dist/
+
 # Local settings (may contain your own Discord application ID)
 /config.json
 

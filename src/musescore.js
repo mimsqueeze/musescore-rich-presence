@@ -10,6 +10,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
+const { resolveHelperFile } = require("./paths");
 
 const HOME_TITLES = /^(MuseScore( Studio| \d)?)?$/i;
 
@@ -47,7 +48,7 @@ function macWindows(executableNames) {
     return new Promise((resolve) => {
         execFile(
             "osascript",
-            ["-l", "JavaScript", path.join(__dirname, "windows.jxa"), ...executableNames],
+            ["-l", "JavaScript", resolveHelperFile("windows.jxa"), ...executableNames],
             (err, stdout) => {
                 let result;
                 try {
@@ -58,10 +59,12 @@ function macWindows(executableNames) {
                 if (result.error !== lastMacError) {
                     lastMacError = result.error;
                     if (result.error) {
+                        const { isSea, getMacAppBundlePath } = require("./paths");
+                        const target = (isSea() && getMacAppBundlePath()) || process.execPath;
                         console.warn(
                             `! Couldn't read MuseScore's window title (${result.error.trim()}). ` +
                                 "Allow access in System Settings > Privacy & Security > Accessibility " +
-                                `(for your terminal app, or for ${process.execPath} when started at login).`
+                                `(for your terminal app, or for ${target} when started at login).`
                         );
                     }
                 }

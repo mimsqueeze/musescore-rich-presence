@@ -70,4 +70,4 @@ async function stopAndWait(timeoutMs = 10_000) {
     return true;
 }
 
-module.exports = { acquireLock, stopRunning, stopAndWait };
+module.exports = { acquireLock, isRunning, stopRunning, stopAndWait };

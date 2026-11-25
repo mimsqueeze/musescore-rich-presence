@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "stop": "node scripts/startup.js stop",
+    "menu": "node src/index.js --menu",
+    "build": "node scripts/build.js",
     "install-startup": "node scripts/startup.js install",
     "uninstall-startup": "node scripts/startup.js uninstall"
   },
@@ -29,5 +31,8 @@
   "homepage": "https://github.com/Mimsqueeze/musescore-studio-rich-presence#readme",
   "dependencies": {
     "@xhayper/discord-rpc": "^1.5.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

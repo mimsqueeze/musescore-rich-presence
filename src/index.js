@@ -6,11 +6,12 @@ const { findProcesses, resolveTitle } = require("./musescore");
 const { getScoreInfo } = require("./score");
 const { watchForeground } = require("./foreground");
 const { acquireLock } = require("./instance");
+const { isSea, getLogPath } = require("./paths");
+const { runCliFlag, runInteractiveMenu } = require("./menu");
 
-const config = loadConfig();
 const RECONNECT_DELAY = 15_000;
-const BACKGROUND = process.argv.includes("--background");
 
+let config;
 let client = null;
 let ready = false;
 let lastActivityJson = null;
@@ -21,9 +22,9 @@ const startTimes = new Map(); // score key -> when we first saw it open, so swit
 
 /** When started at login there's no console, so write messages to logs/presence.log instead. */
 function logToFile() {
-    const logDir = path.join(__dirname, "..", "logs");
-    fs.mkdirSync(logDir, { recursive: true });
-    const log = fs.createWriteStream(path.join(logDir, "presence.log"), { flags: "w" });
+    const logFile = getLogPath();
+    fs.mkdirSync(path.dirname(logFile), { recursive: true });
+    const log = fs.createWriteStream(logFile, { flags: "w" });
     const write = (...args) => log.write(`[${new Date().toLocaleString()}] ${args.join(" ")}\n`);
     console.log = console.warn = console.error = write;
 }
@@ -62,7 +63,7 @@ function buildStates(info, open) {
     return config.states.map((s) => builders[s]?.()).filter(Boolean);
 }
 
-const isMuseScore =(name) =>
+const isMuseScore = (name) =>
     config.processNames.some((p) => p.replace(/\.exe$/i, "").toLowerCase() === name.toLowerCase());
 
 /**
@@ -200,12 +201,15 @@ async function shutdown() {
     process.exit(0);
 }
 
-async function main() {
+async function runPresence(background) {
+    config = loadConfig();
+
     if (!(await acquireLock(shutdown))) {
-        console.log("MuseScore Studio Rich Presence is already running. Use `npm run stop` to stop it.");
+        const stopHint = isSea() ? "Use `--stop` to stop it." : "Use `npm run stop` to stop it.";
+        console.log(`MuseScore Studio Rich Presence is already running. ${stopHint}`);
         process.exit(0);
     }
-    if (BACKGROUND) logToFile();
+    if (background) logToFile();
 
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
@@ -220,6 +224,48 @@ async function main() {
     console.log("Connecting to Discord...");
     connect();
     setInterval(update, config.updateInterval * 1000);
+}
+
+async function main() {
+    const args = process.argv.slice(2);
+    const background = args.includes("--background");
+    const runDirect = args.includes("--run") || args.includes("--foreground");
+    const openMenu = args.includes("--menu");
+
+    const actionFlag = args.find((a) =>
+        [
+            "--help",
+            "-h",
+            "--install",
+            "--install-startup",
+            "--uninstall",
+            "--uninstall-startup",
+            "--stop",
+            "--status",
+        ].includes(a)
+    );
+
+    if (actionFlag) {
+        await runCliFlag(actionFlag);
+        return;
+    }
+
+    const unknown = args.find(
+        (a) => a.startsWith("-") && !["--background", "--run", "--foreground", "--menu"].includes(a)
+    );
+    if (unknown) {
+        console.error(`Unknown option: ${unknown}`);
+        await runCliFlag("--help");
+        process.exitCode = 1;
+        return;
+    }
+
+    if (openMenu || (!background && !runDirect && args.length === 0 && isSea())) {
+        const result = await runInteractiveMenu();
+        if (result !== "run") return;
+    }
+
+    await runPresence(background);
 }
 
 main();

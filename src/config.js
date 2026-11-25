@@ -1,7 +1,8 @@
-// Default settings. Override any of these by creating a config.json in the project root.
+// Default settings. Override any of these by creating a config.json file.
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { getConfigPath } = require("./paths");
 
 const IS_MAC = process.platform === "darwin";
 
@@ -40,8 +41,14 @@ const DEFAULTS = {
         : path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "MuseScore", "MuseScore4"),
 };
 
+const STARTER_CONFIG = {
+    states: ["subtitle"],
+    rotateInterval: 15,
+    privateMode: false,
+};
+
 function loadConfig() {
-    const file = path.join(__dirname, "..", "config.json");
+    const file = getConfigPath();
     if (!fs.existsSync(file)) return { ...DEFAULTS };
     try {
         return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(file, "utf8")) };
@@ -51,4 +58,4 @@ function loadConfig() {
     }
 }
 
-module.exports = { loadConfig };
+module.exports = { loadConfig, getConfigPath, STARTER_CONFIG };
