@@ -7,6 +7,7 @@ const { getScoreInfo } = require("./score");
 const { watchForeground } = require("./foreground");
 const { acquireLock } = require("./instance");
 const { isSea, getLogPath } = require("./paths");
+const { cleanupLegacyInstall } = require("./startup");
 const { runCliFlag, runInteractiveMenu } = require("./menu");
 
 const RECONNECT_DELAY = 15_000;
@@ -198,10 +199,16 @@ async function shutdown() {
     } catch {
         // Exiting anyway.
     }
+    try {
+        await cleanupLegacyInstall({ migrateConfig: true });
+    } catch {
+        // Best-effort cleanup on exit.
+    }
     process.exit(0);
 }
 
 async function runPresence(background) {
+    const legacy = await cleanupLegacyInstall({ migrateConfig: true });
     config = loadConfig();
 
     if (!(await acquireLock(shutdown))) {
@@ -210,6 +217,12 @@ async function runPresence(background) {
         process.exit(0);
     }
     if (background) logToFile();
+    if (legacy.migratedConfig) {
+        console.log("✓ Migrated config.json from previous MuseScore Studio Rich Presence install.");
+    }
+    if (legacy.cleaned) {
+        console.log("✓ Cleaned up previous MuseScore Studio Rich Presence installation.");
+    }
 
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);

@@ -5,10 +5,14 @@
 const fs = require("fs");
 const net = require("net");
 
-const PIPE =
-    process.platform === "win32"
-        ? "\\\\.\\pipe\\musescore-rich-presence"
-        : `/tmp/musescore-rich-presence-${process.getuid()}.sock`;
+function pipePathFor(name) {
+    return process.platform === "win32"
+        ? `\\\\.\\pipe\\${name}`
+        : `/tmp/${name}-${process.getuid()}.sock`;
+}
+
+const PIPE = pipePathFor("musescore-rich-presence");
+const LEGACY_PIPE = pipePathFor("musescore-studio-rich-presence");
 
 /** Resolves true if this is the only running copy. `onStop` is called when asked to stop. */
 function acquireLock(onStop) {
@@ -23,7 +27,7 @@ function acquireLock(onStop) {
             socket.on("error", () => {});
         });
         server.once("error", async (e) => {
-            if (process.platform === "win32" || e.code !== "EADDRINUSE" || (await isRunning())) return resolve(false);
+            if (process.platform === "win32" || e.code !== "EADDRINUSE" || (await isCurrentRunning())) return resolve(false);
             // A socket left behind by a copy that didn't exit cleanly.
             try {
                 fs.unlinkSync(PIPE);
@@ -37,10 +41,9 @@ function acquireLock(onStop) {
     });
 }
 
-/** Asks a running copy to stop. Resolves true if one was running. */
-function stopRunning() {
+function stopOnPipe(pipePath) {
     return new Promise((resolve) => {
-        const socket = net.connect(PIPE, () => socket.write("stop"));
+        const socket = net.connect(pipePath, () => socket.write("stop"));
         socket.on("data", () => {
             socket.destroy();
             resolve(true);
@@ -49,10 +52,9 @@ function stopRunning() {
     });
 }
 
-/** Resolves true if a copy is currently running. */
-function isRunning() {
+function isRunningOnPipe(pipePath) {
     return new Promise((resolve) => {
-        const socket = net.connect(PIPE, () => {
+        const socket = net.connect(pipePath, () => {
             socket.destroy();
             resolve(true);
         });
@@ -60,14 +62,77 @@ function isRunning() {
     });
 }
 
-/** Asks a running copy to stop and waits (up to `timeoutMs`) until it has exited. */
-async function stopAndWait(timeoutMs = 10_000) {
-    if (!(await stopRunning())) return false;
+async function stopAndWaitOnPipe(pipePath, timeoutMs = 10_000) {
+    if (!(await stopOnPipe(pipePath))) return false;
     const deadline = Date.now() + timeoutMs;
-    while ((await isRunning()) && Date.now() < deadline) {
+    while ((await isRunningOnPipe(pipePath)) && Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 200));
     }
     return true;
 }
 
-module.exports = { acquireLock, isRunning, stopRunning, stopAndWait };
+/** Resolves true if a current-name copy is running. */
+function isCurrentRunning() {
+    return isRunningOnPipe(PIPE);
+}
+
+/** Resolves true if a pre-rename (MuseScore Studio Rich Presence) copy is running. */
+function isLegacyRunning() {
+    return isRunningOnPipe(LEGACY_PIPE);
+}
+
+/** Resolves true if either a current or legacy copy is currently running. */
+async function isRunning() {
+    const [current, legacy] = await Promise.all([isCurrentRunning(), isLegacyRunning()]);
+    return current || legacy;
+}
+
+/** Asks a running current-name copy to stop. Resolves true if one was running. */
+function stopCurrent() {
+    return stopOnPipe(PIPE);
+}
+
+/** Asks a running current-name copy to stop and waits until it exits. */
+function stopCurrentAndWait(timeoutMs = 10_000) {
+    return stopAndWaitOnPipe(PIPE, timeoutMs);
+}
+
+/** Stops any pre-rename copy, waits for it to exit, and removes any stale legacy socket file. */
+async function stopLegacyAndWait(timeoutMs = 10_000) {
+    const stopped = await stopAndWaitOnPipe(LEGACY_PIPE, timeoutMs);
+    if (process.platform !== "win32" && fs.existsSync(LEGACY_PIPE) && !(await isLegacyRunning())) {
+        try {
+            fs.unlinkSync(LEGACY_PIPE);
+        } catch {
+            // Best-effort cleanup of stale Unix socket.
+        }
+    }
+    return stopped;
+}
+
+/** Asks any running copy (current or legacy) to stop. Resolves true if one was running. */
+async function stopRunning() {
+    const [current, legacy] = await Promise.all([stopCurrent(), stopOnPipe(LEGACY_PIPE)]);
+    return current || legacy;
+}
+
+/** Asks any running copy (current or legacy) to stop and waits until exited. */
+async function stopAndWait(timeoutMs = 10_000) {
+    const [current, legacy] = await Promise.all([
+        stopCurrentAndWait(timeoutMs),
+        stopLegacyAndWait(timeoutMs),
+    ]);
+    return current || legacy;
+}
+
+module.exports = {
+    acquireLock,
+    isRunning,
+    isCurrentRunning,
+    isLegacyRunning,
+    stopCurrent,
+    stopCurrentAndWait,
+    stopLegacyAndWait,
+    stopRunning,
+    stopAndWait,
+};

@@ -4,6 +4,8 @@ const path = require("path");
 
 const APP_NAME = "MuseScore Rich Presence";
 const MAC_LABEL = "com.github.mimsqueeze.musescore-rich-presence";
+const LEGACY_APP_NAME = "MuseScore Studio Rich Presence";
+const LEGACY_MAC_LABEL = "com.github.mimsqueeze.musescore-studio-rich-presence";
 
 /** Returns true when running inside a Node.js Single Executable Application. */
 function isSea() {
@@ -46,6 +48,18 @@ function getDataDir() {
         return path.join(os.homedir(), "Library", "Application Support", APP_NAME);
     }
     return path.join(os.homedir(), ".musescore-rich-presence");
+}
+
+/** Previous standalone app data directory from before the project was renamed. */
+function getLegacyDataDir() {
+    if (process.platform === "win32") {
+        const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+        return path.join(localAppData, LEGACY_APP_NAME);
+    }
+    if (process.platform === "darwin") {
+        return path.join(os.homedir(), "Library", "Application Support", LEGACY_APP_NAME);
+    }
+    return path.join(os.homedir(), ".musescore-studio-rich-presence");
 }
 
 /** Optional `config.json` placed right next to a portable executable or `.app` bundle. */
@@ -118,10 +132,13 @@ function resolveHelperFile(filename) {
 module.exports = {
     APP_NAME,
     MAC_LABEL,
+    LEGACY_APP_NAME,
+    LEGACY_MAC_LABEL,
     isSea,
     getRepoRoot,
     getMacAppBundlePath,
     getDataDir,
+    getLegacyDataDir,
     getPortableConfigPath,
     getConfigPath,
     getLogPath,

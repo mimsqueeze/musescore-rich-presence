@@ -71,6 +71,8 @@ async function runCliFlag(flag) {
         case "--install":
         case "--install-startup": {
             const res = await installStartup();
+            if (res.legacy?.migratedConfig) console.log("✓ Migrated config.json from previous install.");
+            if (res.legacy?.cleaned) console.log("✓ Cleaned up previous MuseScore Studio Rich Presence install.");
             if (res.installedPath) console.log(`✓ Installed plugin: ${res.installedPath}`);
             console.log(`✓ Added plugin to ${res.os} startup: ${res.startupFile}`);
             console.log(`✓ ${res.restarted ? "Restarted" : "Started"} plugin.`);
@@ -153,6 +155,8 @@ async function runTerminalMenu() {
                     case "1": {
                         const res = await installStartup();
                         pendingCleanupDir = null;
+                        if (res.legacy?.migratedConfig) console.log("✓ Migrated config.json from previous install.");
+                        if (res.legacy?.cleaned) console.log("✓ Cleaned up previous MuseScore Studio Rich Presence install.");
                         if (res.installedPath) console.log(`✓ Installed plugin to: ${res.installedPath}`);
                         console.log(`✓ Added plugin to ${res.os} login startup.`);
                         console.log(`✓ ${res.restarted ? "Restarted" : "Started"} plugin.`);
@@ -165,6 +169,8 @@ async function runTerminalMenu() {
                     }
                     case "2": {
                         const res = await startBackground();
+                        if (res.legacy?.migratedConfig) console.log("✓ Migrated config.json from previous install.");
+                        if (res.legacy?.cleaned) console.log("✓ Cleaned up previous MuseScore Studio Rich Presence install.");
                         if (res.alreadyRunning) {
                             console.log("· Plugin is already running.");
                         } else {

@@ -5,16 +5,25 @@ const { execFileSync, spawn } = require("child_process");
 const {
     APP_NAME,
     MAC_LABEL,
+    LEGACY_APP_NAME,
+    LEGACY_MAC_LABEL,
     isSea,
     getRepoRoot,
     getMacAppBundlePath,
     getDataDir,
+    getLegacyDataDir,
     getPortableConfigPath,
     getConfigPath,
     getLogPath,
     getInstallTarget,
 } = require("./paths");
-const { isRunning, stopRunning, stopAndWait } = require("./instance");
+const {
+    isRunning,
+    isCurrentRunning,
+    stopCurrent,
+    stopCurrentAndWait,
+    stopLegacyAndWait,
+} = require("./instance");
 
 function getLaunchSpec() {
     if (!isSea()) {
@@ -227,12 +236,147 @@ function installBinaryIfNeeded(spec) {
     return false;
 }
 
+function isPathInside(childPath, parentPath) {
+    const rel = path.relative(path.resolve(parentPath), path.resolve(childPath));
+    return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+async function removePathBestEffort(targetPath, retryAfterMs = 0) {
+    if (!fs.existsSync(targetPath)) return false;
+    if (isPathInside(process.execPath, targetPath) || isPathInside(getDataDir(), targetPath)) return false;
+    if (!isSea() && isPathInside(getRepoRoot(), targetPath)) return false;
+    try {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+        return true;
+    } catch {
+        if (retryAfterMs > 0) {
+            await new Promise((r) => setTimeout(r, retryAfterMs));
+            try {
+                fs.rmSync(targetPath, { recursive: true, force: true });
+                return true;
+            } catch {
+                return false;
+            }
+        }
+        return false;
+    }
+}
+
+function removeLegacyStartupEntry() {
+    if (process.platform === "win32") {
+        const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+        const legacyShortcut = path.join(
+            appData,
+            "Microsoft",
+            "Windows",
+            "Start Menu",
+            "Programs",
+            "Startup",
+            `${LEGACY_APP_NAME}.lnk`
+        );
+        if (!fs.existsSync(legacyShortcut)) return false;
+        try {
+            fs.unlinkSync(legacyShortcut);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+    if (process.platform === "darwin") {
+        const legacyPlist = path.join(os.homedir(), "Library", "LaunchAgents", `${LEGACY_MAC_LABEL}.plist`);
+        const existed = fs.existsSync(legacyPlist);
+        if (existed) {
+            try {
+                execFileSync("launchctl", ["bootout", `gui/${process.getuid()}/${LEGACY_MAC_LABEL}`], {
+                    stdio: "ignore",
+                });
+            } catch {
+                // LaunchAgent wasn't loaded; continue removing plist.
+            }
+            try {
+                fs.unlinkSync(legacyPlist);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Cleans up any leftover running process, login startup entry, app bundle, or data directory
+ * from the old "MuseScore Studio Rich Presence" name. Optionally preserves an existing
+ * `config.json` into the new location before removing the old data directory.
+ */
+async function cleanupLegacyInstall({ migrateConfig = true } = {}) {
+    const removedLegacyStartup = removeLegacyStartupEntry();
+    const stoppedLegacy = await stopLegacyAndWait();
+
+    // On Windows, give the exited legacy binary a brief moment to release its executable file lock.
+    if (stoppedLegacy && process.platform === "win32") {
+        await new Promise((r) => setTimeout(r, 150));
+    }
+
+    const legacyDataDir = getLegacyDataDir();
+    let migratedConfig = false;
+
+    if (migrateConfig && fs.existsSync(legacyDataDir)) {
+        const legacyConfig = path.join(legacyDataDir, "config.json");
+        const targetConfig = path.join(getDataDir(), "config.json");
+        const portableConfig = getPortableConfigPath();
+        const hasPortable = Boolean(portableConfig && fs.existsSync(portableConfig));
+        if (fs.existsSync(legacyConfig) && !fs.existsSync(targetConfig) && !hasPortable) {
+            try {
+                fs.mkdirSync(path.dirname(targetConfig), { recursive: true });
+                fs.copyFileSync(legacyConfig, targetConfig);
+                migratedConfig = true;
+            } catch {
+                // Keep going; don't block startup/stop if config migration fails.
+            }
+        }
+    }
+
+    const removedLegacyData = await removePathBestEffort(
+        legacyDataDir,
+        stoppedLegacy && process.platform === "win32" ? 300 : 0
+    );
+
+    let removedLegacyApp = false;
+    if (process.platform === "darwin") {
+        const legacyAppPaths = [
+            path.join(os.homedir(), "Applications", `${LEGACY_APP_NAME}.app`),
+            path.join("/Applications", `${LEGACY_APP_NAME}.app`),
+        ];
+        for (const appPath of legacyAppPaths) {
+            if (await removePathBestEffort(appPath)) removedLegacyApp = true;
+        }
+    }
+
+    return {
+        cleaned: removedLegacyStartup || stoppedLegacy || removedLegacyData || removedLegacyApp,
+        removedLegacyStartup,
+        stoppedLegacy,
+        removedLegacyData,
+        removedLegacyApp,
+        migratedConfig,
+    };
+}
+
+async function stopRunning() {
+    const stoppedCurrent = await stopCurrent();
+    const legacy = await cleanupLegacyInstall({ migrateConfig: true });
+    return stoppedCurrent || legacy.stoppedLegacy;
+}
+
 async function installStartup() {
     const startup = getPlatformStartup();
     const spec = getLaunchSpec();
 
-    // Stop any running copy first so Windows doesn't lock the installed executable during copy.
-    const restarted = await stopAndWait();
+    // Stop any running copy (current or legacy) and clean up old paths before installing.
+    const restartedCurrent = await stopCurrentAndWait();
+    const legacy = await cleanupLegacyInstall({ migrateConfig: true });
+    const restarted = restartedCurrent || legacy.stoppedLegacy;
     const copied = installBinaryIfNeeded(spec);
     startup.add(spec);
     startup.start(spec);
@@ -243,13 +387,15 @@ async function installStartup() {
         installedPath: spec.installedPath,
         copied,
         restarted,
+        legacy,
         logPath: getLogPath(),
     };
 }
 
 async function startBackground() {
-    if (await isRunning()) {
-        return { started: false, alreadyRunning: true };
+    const legacy = await cleanupLegacyInstall({ migrateConfig: true });
+    if (await isCurrentRunning()) {
+        return { started: false, alreadyRunning: true, legacy };
     }
 
     const startup = getPlatformStartup();
@@ -264,17 +410,18 @@ async function startBackground() {
             stdio: "ignore",
             windowsHide: true,
         }).unref();
-        return { started: true, alreadyRunning: false, logPath: getLogPath() };
+        return { started: true, alreadyRunning: false, legacy, logPath: getLogPath() };
     }
 
     startup.start(spec);
-    return { started: true, alreadyRunning: false, logPath: getLogPath() };
+    return { started: true, alreadyRunning: false, legacy, logPath: getLogPath() };
 }
 
 async function uninstallStartup({ removeData = false } = {}) {
     const startup = getPlatformStartup();
     const removedStartup = startup.remove();
-    const stopped = await stopAndWait();
+    const stoppedCurrent = await stopCurrentAndWait();
+    const legacy = await cleanupLegacyInstall({ migrateConfig: !removeData });
 
     let removedData = false;
     let deferredCleanupDir = null;
@@ -300,9 +447,10 @@ async function uninstallStartup({ removeData = false } = {}) {
 
     return {
         os: startup.os,
-        removedStartup,
-        stopped,
-        removedData,
+        removedStartup: removedStartup || legacy.removedLegacyStartup,
+        stopped: stoppedCurrent || legacy.stoppedLegacy,
+        removedData: removedData || (removeData && legacy.removedLegacyData),
+        legacy,
         deferredCleanupDir,
     };
 }
@@ -335,6 +483,7 @@ async function getStartupStatus() {
 }
 
 module.exports = {
+    cleanupLegacyInstall,
     installStartup,
     startBackground,
     uninstallStartup,
