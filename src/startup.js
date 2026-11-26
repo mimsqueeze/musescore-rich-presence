@@ -202,7 +202,7 @@ function installBinaryIfNeeded(spec) {
         const bundle = getMacAppBundlePath();
         if (bundle && bundle.includes("/AppTranslocation/")) {
             throw new Error(
-                "Please move MuseScore Studio Rich Presence.app into your Applications folder first, then open it from there."
+                `Please move ${APP_NAME}.app into your Applications folder first, then open it from there.`
             );
         }
         if (bundle && path.resolve(bundle) !== path.resolve(spec.installedPath)) {

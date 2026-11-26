@@ -2,8 +2,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const APP_NAME = "MuseScore Studio Rich Presence";
-const MAC_LABEL = "com.github.mimsqueeze.musescore-studio-rich-presence";
+const APP_NAME = "MuseScore Rich Presence";
+const MAC_LABEL = "com.github.mimsqueeze.musescore-rich-presence";
 
 /** Returns true when running inside a Node.js Single Executable Application. */
 function isSea() {
@@ -45,7 +45,7 @@ function getDataDir() {
     if (process.platform === "darwin") {
         return path.join(os.homedir(), "Library", "Application Support", APP_NAME);
     }
-    return path.join(os.homedir(), ".musescore-studio-rich-presence");
+    return path.join(os.homedir(), ".musescore-rich-presence");
 }
 
 /** Optional `config.json` placed right next to a portable executable or `.app` bundle. */
@@ -87,9 +87,9 @@ function getInstallTarget() {
             }
             return bundle;
         }
-        return path.join(getDataDir(), "musescore-studio-rich-presence");
+        return path.join(getDataDir(), "musescore-rich-presence");
     }
-    return path.join(getDataDir(), "musescore-studio-rich-presence");
+    return path.join(getDataDir(), "musescore-rich-presence");
 }
 
 /**

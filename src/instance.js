@@ -7,8 +7,8 @@ const net = require("net");
 
 const PIPE =
     process.platform === "win32"
-        ? "\\\\.\\pipe\\musescore-studio-rich-presence"
-        : `/tmp/musescore-studio-rich-presence-${process.getuid()}.sock`;
+        ? "\\\\.\\pipe\\musescore-rich-presence"
+        : `/tmp/musescore-rich-presence-${process.getuid()}.sock`;
 
 /** Resolves true if this is the only running copy. `onStop` is called when asked to stop. */
 function acquireLock(onStop) {

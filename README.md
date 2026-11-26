@@ -1,4 +1,4 @@
-# MuseScore Studio Rich Presence
+# MuseScore Rich Presence
 
 Show the score you're working on in [MuseScore Studio](https://musescore.org) as your Discord Rich Presence.
 
@@ -17,20 +17,20 @@ It runs alongside MuseScore Studio on Windows and macOS, with nothing to install
 
 ### Option 1: Standalone app (no Node.js required)
 
-Download the latest release for your OS from the [Releases](https://github.com/Mimsqueeze/musescore-studio-rich-presence/releases) page:
+Download the latest release for your OS from the [Releases](https://github.com/Mimsqueeze/musescore-rich-presence/releases) page:
 
-- **Windows**: Download `MuseScore-Studio-Rich-Presence-win-x64.exe` and double-click it.
+- **Windows**: Download `MuseScore-Rich-Presence-win-x64.exe` and double-click it.
   - If Windows SmartScreen warns about an unrecognized app, click **More info** > **Run anyway**.
-  - Choose **1. Install & start plugin at login** from the setup menu. It installs itself to `%LOCALAPPDATA%\MuseScore Studio Rich Presence\`, sets up login startup, and starts silently.
-- **macOS**: Download the `.dmg` for your Mac (`arm64` for Apple Silicon, `x64` for Intel), open it, and drag **MuseScore Studio Rich Presence.app** into **Applications**.
+  - Choose **1. Install & start plugin at login** from the setup menu. It installs itself to `%LOCALAPPDATA%\MuseScore Rich Presence\`, sets up login startup, and starts silently.
+- **macOS**: Download the `.dmg` for your Mac (`arm64` for Apple Silicon, `x64` for Intel), open it, and drag **MuseScore Rich Presence.app** into **Applications**.
   - Because the app is not notarized with an Apple Developer ID, the first time you open it macOS may block it. Right-click the app in Applications and click **Open** (or allow it in **System Settings > Privacy & Security**).
   - Pick **Install & Start Plugin at Login** from the prompt.
 
 From the setup menu (or by passing `--install`, `--stop`, `--status`, `--uninstall`, `--run`, or `--help` on the command line), you can start/stop the plugin, view logs, or open `config.json`.
 
 For the standalone app, settings and logs are stored in:
-- **Windows**: `%LOCALAPPDATA%\MuseScore Studio Rich Presence\`
-- **macOS**: `~/Library/Application Support/MuseScore Studio Rich Presence/`
+- **Windows**: `%LOCALAPPDATA%\MuseScore Rich Presence\`
+- **macOS**: `~/Library/Application Support/MuseScore Rich Presence/`
 
 *(You can also place a `config.json` right next to the `.exe` or `.app` for portable settings.)*
 
@@ -64,7 +64,7 @@ Outputs are written to `dist/` (`.exe` on Windows, `.app` and `.dmg` on macOS).
 ### macOS permissions
 
 On macOS, reading MuseScore's window title needs Accessibility access.
-- If using the standalone `.app`, open **System Settings > Privacy & Security > Accessibility** and turn on **MuseScore Studio Rich Presence**.
+- If using the standalone `.app`, open **System Settings > Privacy & Security > Accessibility** and turn on **MuseScore Rich Presence**.
 - If running from source, macOS asks whether your terminal app may control System Events. Click **OK**, then allow your terminal app (Terminal, iTerm, VS Code, …) under **Accessibility**. If started at login from source, allow the `node` executable named in `logs/presence.log` instead.
 - macOS may also ask for access to your Documents folder, where scores live; allow that too.
 

@@ -1,6 +1,6 @@
 // Bundles the app with esbuild and builds a standalone executable via `node --build-sea` (Node >= 25.5).
-// On Windows outputs `dist/MuseScore-Studio-Rich-Presence-win-<arch>.exe`.
-// On macOS outputs `dist/MuseScore Studio Rich Presence.app` and `dist/MuseScore-Studio-Rich-Presence-mac-<arch>.dmg`.
+// On Windows outputs `dist/MuseScore-Rich-Presence-win-<arch>.exe`.
+// On macOS outputs `dist/MuseScore Rich Presence.app` and `dist/MuseScore-Rich-Presence-mac-<arch>.dmg`.
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
@@ -9,8 +9,8 @@ const { version } = require("../package.json");
 
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist");
-const APP_NAME = "MuseScore Studio Rich Presence";
-const MAC_LABEL = "com.github.mimsqueeze.musescore-studio-rich-presence";
+const APP_NAME = "MuseScore Rich Presence";
+const MAC_LABEL = "com.github.mimsqueeze.musescore-rich-presence";
 
 function checkNodeSeaSupport() {
     const [major, minor] = process.versions.node.split(".").map(Number);
@@ -108,7 +108,7 @@ function packageMacApp(bundlePath) {
     execFileSync("cp", ["-R", appDir, path.join(dmgStage, `${APP_NAME}.app`)], { stdio: "inherit" });
     fs.symlinkSync("/Applications", path.join(dmgStage, "Applications"));
 
-    const dmgPath = path.join(DIST, `MuseScore-Studio-Rich-Presence-mac-${process.arch}.dmg`);
+    const dmgPath = path.join(DIST, `MuseScore-Rich-Presence-mac-${process.arch}.dmg`);
     fs.rmSync(dmgPath, { force: true });
     execFileSync(
         "hdiutil",
@@ -127,14 +127,14 @@ function main() {
     const bundlePath = bundleApp();
 
     if (process.platform === "win32") {
-        const exePath = path.join(DIST, `MuseScore-Studio-Rich-Presence-win-${process.arch}.exe`);
+        const exePath = path.join(DIST, `MuseScore-Rich-Presence-win-${process.arch}.exe`);
         fs.rmSync(exePath, { force: true });
         buildSeaBinary(bundlePath, exePath);
         console.log(`✓ Built Windows executable: ${exePath}`);
     } else if (process.platform === "darwin") {
         packageMacApp(bundlePath);
     } else {
-        const binPath = path.join(DIST, `musescore-studio-rich-presence-${process.platform}-${process.arch}`);
+        const binPath = path.join(DIST, `musescore-rich-presence-${process.platform}-${process.arch}`);
         fs.rmSync(binPath, { force: true });
         buildSeaBinary(bundlePath, binPath);
         fs.chmodSync(binPath, 0o755);

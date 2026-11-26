@@ -206,7 +206,7 @@ async function runPresence(background) {
 
     if (!(await acquireLock(shutdown))) {
         const stopHint = isSea() ? "Use `--stop` to stop it." : "Use `npm run stop` to stop it.";
-        console.log(`MuseScore Studio Rich Presence is already running. ${stopHint}`);
+        console.log(`MuseScore Rich Presence is already running. ${stopHint}`);
         process.exit(0);
     }
     if (background) logToFile();

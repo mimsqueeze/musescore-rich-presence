@@ -298,7 +298,7 @@ async function runMacGuiMenu() {
                     `Plugin installed and started!\n\n` +
                         `Login startup: ${res.startupFile}\n` +
                         `Logs: ${res.logPath}\n\n` +
-                        `If MuseScore scores don't show on Discord, allow Accessibility access for MuseScore Studio Rich Presence in System Settings > Privacy & Security > Accessibility.`
+                        `If MuseScore scores don't show on Discord, allow Accessibility access for ${APP_NAME} in System Settings > Privacy & Security > Accessibility.`
                 );
             } else if (picked.startsWith("Start")) {
                 const res = await startBackground();

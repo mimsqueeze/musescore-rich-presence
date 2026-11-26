@@ -25,13 +25,13 @@ jobs:
         include:
           - label: Windows x64
             os: windows-latest
-            artifact: dist/MuseScore-Studio-Rich-Presence-win-x64.exe
+            artifact: dist/MuseScore-Rich-Presence-win-x64.exe
           - label: macOS Apple Silicon
             os: macos-latest
-            artifact: dist/MuseScore-Studio-Rich-Presence-mac-arm64.dmg
+            artifact: dist/MuseScore-Rich-Presence-mac-arm64.dmg
           - label: macOS Intel
             os: macos-15-intel
-            artifact: dist/MuseScore-Studio-Rich-Presence-mac-x64.dmg
+            artifact: dist/MuseScore-Rich-Presence-mac-x64.dmg
 
     steps:
       - uses: actions/checkout@v4
