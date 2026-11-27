@@ -41,11 +41,59 @@ const DEFAULTS = {
         : path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "MuseScore", "MuseScore4"),
 };
 
+const STATE_OPTIONS = [
+    { key: "subtitle", label: "Subtitle", example: "Moonlight Sonata" },
+    { key: "part", label: "Part name", example: "Violin 1 part" },
+    { key: "composer", label: "Composer", example: "by Ludwig van Beethoven" },
+    { key: "instruments", label: "Instruments", example: "Piano" },
+    { key: "measures", label: "Measures & time signature", example: "184 measures · 4/4" },
+    { key: "key", label: "Key signature", example: "Key: E major / C♯ minor" },
+    { key: "tempo", label: "Tempo", example: "♩ = 54" },
+];
+
 const STARTER_CONFIG = {
     states: ["subtitle"],
     rotateInterval: 15,
     privateMode: false,
 };
+
+function readUserConfig(file = getConfigPath()) {
+    if (!fs.existsSync(file)) return {};
+    try {
+        const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveConfigPatch(patch, file = getConfigPath()) {
+    const current = readUserConfig(file);
+    const next = { ...STARTER_CONFIG, ...current, ...patch };
+    for (const [k, v] of Object.entries(next)) {
+        if (v === undefined) delete next[k];
+    }
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(next, null, 2) + "\n", "utf8");
+    return { ...DEFAULTS, ...next };
+}
+
+function resetConfig(file = getConfigPath()) {
+    const current = readUserConfig(file);
+    const next = { ...current, ...STARTER_CONFIG };
+    delete next.activityName;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(next, null, 2) + "\n", "utf8");
+    return { ...DEFAULTS, ...next };
+}
+
+function getConfigMtime(file = getConfigPath()) {
+    try {
+        return fs.statSync(file).mtimeMs;
+    } catch {
+        return 0;
+    }
+}
 
 function loadConfig() {
     const file = getConfigPath();
@@ -58,4 +106,14 @@ function loadConfig() {
     }
 }
 
-module.exports = { loadConfig, getConfigPath, STARTER_CONFIG };
+module.exports = {
+    DEFAULTS,
+    STATE_OPTIONS,
+    STARTER_CONFIG,
+    loadConfig,
+    readUserConfig,
+    saveConfigPatch,
+    resetConfig,
+    getConfigPath,
+    getConfigMtime,
+};

@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Client } = require("@xhayper/discord-rpc");
-const { loadConfig } = require("./config");
+const { loadConfig, getConfigMtime } = require("./config");
 const { findProcesses, resolveTitle } = require("./musescore");
 const { getScoreInfo } = require("./score");
 const { watchForeground } = require("./foreground");
@@ -13,6 +13,8 @@ const { runCliFlag, runInteractiveMenu } = require("./menu");
 const RECONNECT_DELAY = 15_000;
 
 let config;
+let lastConfigMtime = 0;
+let pollTimer = null;
 let client = null;
 let ready = false;
 let lastActivityJson = null;
@@ -128,7 +130,33 @@ async function buildActivity() {
 let updating = false;
 let updateQueued = false;
 
+function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(update, Math.max(1, config.updateInterval) * 1000);
+}
+
+function reloadConfigIfChanged() {
+    const mtime = getConfigMtime();
+    if (mtime === lastConfigMtime) return;
+    lastConfigMtime = mtime;
+
+    const prev = config;
+    const next = loadConfig();
+    config = next;
+    lastActivityJson = null;
+    console.log("↻ Reloaded settings from config.json.");
+
+    if (prev && next.updateInterval !== prev.updateInterval) {
+        startPolling();
+    }
+    if (prev && next.clientId !== prev.clientId && client) {
+        ready = false;
+        client.destroy().catch(() => {}).finally(connect);
+    }
+}
+
 async function update() {
+    reloadConfigIfChanged();
     if (!ready) return;
     // Focus changes can trigger updates at any time; never run two at once.
     if (updating) {
@@ -210,6 +238,7 @@ async function shutdown() {
 async function runPresence(background) {
     const legacy = await cleanupLegacyInstall({ migrateConfig: true });
     config = loadConfig();
+    lastConfigMtime = getConfigMtime();
 
     if (!(await acquireLock(shutdown))) {
         const stopHint = isSea() ? "Use `--stop` to stop it." : "Use `npm run stop` to stop it.";
@@ -236,7 +265,7 @@ async function runPresence(background) {
 
     console.log("Connecting to Discord...");
     connect();
-    setInterval(update, config.updateInterval * 1000);
+    startPolling();
 }
 
 async function main() {
