@@ -2,12 +2,9 @@
 
 Show the score you're working on in [MuseScore Studio](https://musescore.org) as your Discord Rich Presence.
 
-```
-Playing MuseScore Studio
-Piano Sonata No. 14
-Moonlight Sonata
-00:42 elapsed
-```
+<p>
+  <img src="assets/status-default.png" alt="Discord Rich Presence showing Playing MuseScore Studio: Piano Sonata No. 14 — Moonlight Sonata, 0:42 elapsed" width="360" />
+</p>
 
 The first line is the score's title, and by default the second is its subtitle. The second line can instead rotate through other details, such as the composer, instruments or tempo. See [Configuration](#configuration).
 
@@ -114,6 +111,10 @@ Create or edit `config.json` (use **Open config file** in the setup menu for the
 
 `states` chooses what appears below the title. With one entry, that entry stays fixed. With several, the line rotates through them every `rotateInterval` seconds. Entries a score doesn't have, like a missing subtitle, are skipped. If none apply, the second line is left out.
 
+<p>
+  <img src="assets/status-rotating.gif" alt="Animated Discord Rich Presence rotating through subtitle, composer, instruments, measures, key signature, and tempo for Piano Sonata No. 14" width="360" />
+</p>
+
 | Entry | Example |
 | --- | --- |
 | `subtitle` | Moonlight Sonata |
@@ -123,6 +124,14 @@ Create or edit `config.json` (use **Open config file** in the setup menu for the
 | `measures` | 184 measures · 4/4 |
 | `key` | Key: E major / C♯ minor |
 | `tempo` | ♩ = 54 |
+
+**Part tab, private mode, and Home screen:**
+
+<p>
+  <img src="assets/status-part.png" alt="Discord Rich Presence showing a part tab: String Quartet No. 14 — Violin 1 part" width="260" />
+  <img src="assets/status-private.png" alt="Discord Rich Presence in private mode showing Composing" width="260" />
+  <img src="assets/status-browsing.png" alt="Discord Rich Presence on the MuseScore Home screen showing Browsing scores" width="260" />
+</p>
 
 ### All options
 
